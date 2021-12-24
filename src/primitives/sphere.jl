@@ -6,6 +6,8 @@
     Sphere(center, radius)
 
 A sphere with `center` and `radius`.
+
+See also [`Ball`](@ref).
 """
 struct Sphere{Dim,T} <: Primitive{Dim,T}
   center::Point{Dim,T}
@@ -39,6 +41,8 @@ isconvex(::Type{<:Sphere}) = false
 
 center(s::Sphere) = s.center
 radius(s::Sphere) = s.radius
+
+boundary(::Sphere) = nothing
 
 # https://en.wikipedia.org/wiki/N-sphere#Volume_and_surface_area
 function measure(s::Sphere{Dim}) where {Dim}

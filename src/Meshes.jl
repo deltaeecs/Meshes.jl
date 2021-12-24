@@ -17,7 +17,7 @@ using IterTools: ivec
 using StatsBase: Weights
 using SpecialFunctions: gamma
 using Distances: PreMetric, Euclidean, Mahalanobis, evaluate
-using ReferenceFrameRotations: angle_to_dcm
+using ReferenceFrameRotations: EulerAngles, DCM, angle_to_dcm
 using NearestNeighbors: KDTree, BallTree, knn, inrange
 
 # import categorical arrays as a temporary solution for plot recipes
@@ -46,6 +46,9 @@ include("vectors.jl")
 include("points.jl")
 include("angles.jl")
 
+# rotations
+include("rotations.jl")
+
 # type traits
 include("traits.jl")
 
@@ -64,8 +67,7 @@ include("mesh.jl")
 # mesh data
 include("meshdata.jl")
 
-# conventions and utilities
-include("conventions.jl")
+# utilities
 include("utils.jl")
 
 # miscellaneous
@@ -74,7 +76,7 @@ include("distances.jl")
 include("neighborhoods.jl")
 include("neighborsearch.jl")
 include("supportfun.jl")
-include("laplacian.jl")
+include("diffops.jl")
 
 # views and partitions
 include("views.jl")
@@ -101,20 +103,29 @@ include("plotrecipes/collections.jl")
 include("plotrecipes/cartesiangrids.jl")
 include("plotrecipes/partitions.jl")
 
-export 
+export
   # points
   Point, Point1, Point2, Point3,
   Point1f, Point2f, Point3f,
   embeddim, paramdim,
   coordtype, coordinates,
-  center, centroid,
+  center, centroid, measure,
   ⪯, ≺, ⪰, ≻,
 
   # vectors
   Vec, Vec1, Vec2, Vec3, Vec1f, Vec2f, Vec3f,
 
+  # linear algebra
+  ⋅, ×,
+
   # angles
   ∠,
+
+  # rotations
+  ClockwiseAngle,
+  CounterClockwiseAngle,
+  EulerAngles,
+  TaitBryanAngles,
 
   # domain traits
   Domain,
@@ -141,10 +152,10 @@ export
   # primitives
   Primitive,
   Line, Ray, Plane, BezierCurve,
-  Box, Ball, Sphere, Cylinder,
+  Box, Ball, Sphere, Cylinder, CylinderSurface,
   ncontrols, degree, Horner, DeCasteljau,
-  radius, height, sides,
-  measure, diagonal, origin,
+  radius, axis, planes, height, isright, sides,
+  measure, diagonal, origin, direction,
 
   # polytopes
   Polytope, Polygon, Polyhedron,
@@ -174,14 +185,6 @@ export
   PointSet,
   GeometrySet,
 
-  # rotation conventions
-  RotationConvention,
-  GSLIB, Leapfrog, Datamine,
-  TaitBryanExtr, TaitBryanIntr,
-  EulerExtr, EulerIntr,
-  axesseq, orientation, angleunits,
-  mainaxis, isextrinsic, rotmat,
-
   # utililities
   signarea,
   sideof,
@@ -195,7 +198,10 @@ export
   # neighborhoods
   Neighborhood,
   MetricBall,
-  metric, radii,
+  metric,
+  radii,
+  radius,
+  isisotropic,
 
   # neighbordhood search
   NeighborSearchMethod,
@@ -209,6 +215,7 @@ export
   # miscellaneous
   supportfun,
   laplacematrix,
+  measurematrix,
 
   # connectivities
   Connectivity,
@@ -273,7 +280,7 @@ export
   PartitionMethod,
   PredicatePartitionMethod,
   SPredicatePartitionMethod,
-  RandomPartition,
+  UniformPartition,
   FractionPartition,
   BlockPartition,
   BisectPointPartition,
@@ -299,7 +306,10 @@ export
   OverlappingBoxes,
   FaceTouchingBoxes,
   CornerTouchingBoxes,
+  CrossingRayBox,
+  TouchingRayBox,
   IntersectingSegmentTriangle,
+  IntersectingRayTriangle,
   CrossingSegmentPlane,
   TouchingSegmentPlane,
   OverlappingSegmentPlane,
@@ -308,8 +318,12 @@ export
 
   # discretization
   DiscretizationMethod,
+  BoundaryDiscretizationMethod,
+  FanTriangulation,
+  RegularDiscretization,
   FIST, Dehn1899,
   discretize,
+  discretizewithin,
   triangulate,
 
   # simplification
@@ -320,6 +334,7 @@ export
 
   # refinement
   RefinementMethod,
+  TriRefinement,
   QuadRefinement,
   CatmullClark,
   refine,
@@ -335,6 +350,9 @@ export
   # hulls
   HullMethod,
   GrahamScan,
-  hull
+  hull,
+
+  # tolerances
+  atol
 
 end # module

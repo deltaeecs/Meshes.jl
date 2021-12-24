@@ -3,6 +3,7 @@
     l = Line(P2(0,0), P2(1,1))
     @test paramdim(l) == 1
     @test isconvex(l)
+    @test isnothing(boundary(l))
 
     l = Line(P2(0,0), P2(1,1))
     @test (l(0), l(1)) == (P2(0,0), P2(1,1))
@@ -12,6 +13,9 @@
     r = Ray(P2(0,0), V2(1,1))
     @test paramdim(r) == 1
     @test isconvex(r)
+    @test origin(r) == P2(0,0)
+    @test direction(r) == V2(1,1)
+    @test boundary(r) == P2(0,0)
 
     r = Ray(P2(0,0), V2(1,1))
     @test r(T(0.)) == P2(0,0)
@@ -22,12 +26,21 @@
 
   @testset "Planes" begin
     p = Plane(P3(0, 0, 0), V3(1, 0, 0), V3(0, 1, 0))
-    @test p(T(1.0), T(0.0)) == P3(1, 0, 0)
+    @test p(T(1), T(0)) == P3(1, 0, 0)
     @test paramdim(p) == 2
     @test embeddim(p) == 3
     @test isconvex(p)
     @test origin(p) == P3(0, 0, 0)
     @test normal(p) == Vec(0, 0, 1)
+    @test isnothing(boundary(p))
+
+    p = Plane(P3(0, 0, 0), V3(0, 0, 1))
+    @test p(T(1), T(0)) == P3(1, 0, 0)
+    @test p(T(0), T(1)) == P3(0, 1, 0)
+
+    p1 = Plane(P3(0, 0, 0), V3(1, 0, 0), V3(0, 1, 0))
+    p2 = Plane(P3(0, 0, 0), V3(0, 0, 1))
+    @test p1 == p2
   end
 
   @testset "Bezier curves" begin
@@ -43,6 +56,10 @@
       @test_throws DomainError(T(-0.1), "b(t) is not defined for t outside [0, 1].") b(T(-0.1), method)
       @test_throws DomainError(T(1.2), "b(t) is not defined for t outside [0, 1].") b(T(1.2), method)
     end
+
+    @test boundary(b) == PointSet(P2(0,0), P2(1,0))
+    b = BezierCurve(P2(0,0), P2(1,1))
+    @test boundary(b) == PointSet([P2(0,0), P2(1,1)])
 
     b = BezierCurve(P2.(randn(100), randn(100)))
     t1 = @timed b(T(0.2))
@@ -62,7 +79,7 @@
     @test isconvex(b)
 
     b = Box(P2(0,0), P2(1,1))
-    @test measure(b) == T(1)
+    @test measure(b) == area(b) == T(1)
     @test P2(1,1) ∈ b
 
     b = Box(P2(1,1), P2(2,2))
@@ -133,6 +150,7 @@
     @test Meshes.center(s) == P3(0, 0, 0)
     @test radius(s) == T(1)
     @test !isconvex(s)
+    @test isnothing(boundary(s))
 
     s = Sphere(P2(0,0), T(2))
     @test measure(s) ≈ 2π*2
@@ -166,14 +184,36 @@
   end
 
   @testset "Cylinder" begin
-    c = Cylinder(P3(1,2,3), P3(4,5,6), T(5))
+    c = Cylinder(T(5),
+                 Plane(P3(1,2,3), V3(0,0,1)),
+                 Plane(P3(4,5,6), V3(0,0,1)))
     @test embeddim(c) == 3
     @test paramdim(c) == 3
     @test coordtype(c) == T
     @test radius(c) == T(5)
-    @test height(c) ≈ √27
+    @test axis(c) == Line(P3(1,2,3), P3(4,5,6))
+    @test planes(c) == (Plane(P3(1,2,3), V3(0,0,1)), Plane(P3(4,5,6), V3(0,0,1)))
     @test isconvex(c)
+    @test !isright(c)
 
-    @test measure(c) ≈ π*5.0^2*√27
+    c = Cylinder(T(1), Segment(P3(0,0,0), P3(0,0,1)))
+    @test radius(c) == T(1)
+    @test axis(c) == Line(P3(0,0,0), P3(0,0,1))
+    @test planes(c) == (Plane(P3(0,0,0), V3(0,0,1)), Plane(P3(0,0,1), V3(0,0,1)))
+    @test isright(c)
+    @test boundary(c) == CylinderSurface(T(1), Segment(P3(0,0,0), P3(0,0,1)))
+  end
+
+  @testset "CylinderSurface" begin
+    c = CylinderSurface(T(2))
+    @test embeddim(c) == 3
+    @test paramdim(c) == 2
+    @test coordtype(c) == T
+    @test radius(c) == T(2)
+    @test axis(c) == Line(P3(0,0,0), P3(0,0,1))
+    @test planes(c) == (Plane(P3(0,0,0), V3(0,0,1)), Plane(P3(0,0,1), V3(0,0,1)))
+    @test isconvex(c)
+    @test isright(c)
+    @test isnothing(boundary(c))
   end
 end

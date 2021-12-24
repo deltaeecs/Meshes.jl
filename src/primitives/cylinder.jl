@@ -3,25 +3,53 @@
 # ------------------------------------------------------------------
 
 """
-    Cylinder(start, finish, radius)
+    Cylinder(radius, bottom, top)
 
-A right circular cylinder with `start` and `finish` points,
-and `radius` of revolution. See https://en.wikipedia.org/wiki/Cylinder. 
+A solid circular cylinder embedded in R³ with given `radius`,
+delimited by `bottom` and `top` planes.
+
+    Cylinder(radius, segment)
+
+Alternatively, construct a right circular cylinder with given `radius`
+and `segment` between origin of `bottom` and `top` planes.
+
+    Cylinder(radius)
+
+Finally, construct a right vertical circular cylinder with given `radius`.
+
+See https://en.wikipedia.org/wiki/Cylinder. 
 """
 struct Cylinder{T} <: Primitive{3,T}
-  start::Point{3,T}
-  finish::Point{3,T}
   radius::T
+  bot::Plane{T}
+  top::Plane{T}
 end
 
-Cylinder(start::Tuple, finish::Tuple, radius) =
-  Cylinder(Point(start), Point(finish), radius)
+function Cylinder(radius::T, segment::Segment{3,T}) where {T}
+  a, b = extrema(segment)
+  v    = b - a
+  bot  = Plane(a, v)
+  top  = Plane(b, v)
+  Cylinder(radius, bot, top)
+end
+
+function Cylinder(radius::T) where {T}
+  _0 = (T(0), T(0), T(0))
+  _1 = (T(0), T(0), T(1))
+  segment = Segment(_0, _1)
+  Cylinder(radius, segment)
+end
 
 paramdim(::Type{<:Cylinder}) = 3
 
 isconvex(::Type{<:Cylinder}) = true
 
 radius(c::Cylinder) = c.radius
-height(c::Cylinder) = norm(c.finish - c.start)
 
-measure(c::Cylinder) = π * radius(c)^2 * height(c)
+axis(c::Cylinder) = Line(origin(c.bot), origin(c.top))
+
+planes(c::Cylinder) = (c.bot, c.top)
+
+isright(c::Cylinder) = isright(boundary(c))
+
+boundary(c::Cylinder) = CylinderSurface(c.radius, c.bot, c.top)

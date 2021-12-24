@@ -12,18 +12,18 @@ and is based on a theorem derived in 1899 by the German mathematician Max Dehn.
 See https://en.wikipedia.org/wiki/Two_ears_theorem.
 
 Because the algorithm relies on recursion, it is mostly appropriate for polygons
-with small number of vertices. Currently, the implementation does not support holes.
+with small number of vertices.
 
 ## References
 
 * Devadoss, S & Rourke, J. 2011. [Discrete and computational geometry]
   (https://press.princeton.edu/books/hardcover/9780691145532/discrete-and-computational-geometry)
 """
-struct Dehn1899 <: DiscretizationMethod end
+struct Dehn1899 <: BoundaryDiscretizationMethod end
 
-function discretize(𝒫::Chain, ::Dehn1899)
+function discretizewithin(chain::Chain{2}, ::Dehn1899)
   # points on resulting mesh
-  points = collect(vertices(𝒫))
+  points = collect(vertices(chain))
 
   # Dehn's recursion
   connec = dehn1899(points, 1:length(points))
@@ -46,7 +46,7 @@ function dehn1899(v::AbstractVector{Point{Dim,T}}, inds) where {Dim,T}
     # check if candidate diagonal is valid
     Δ = Triangle(v[I[linds]])
     intriangle = findall(j -> v[I[j]] ∈ Δ, rinds[2:end-1])
-    isdiag = signarea(Δ) > atol(T)^2 && isempty(intriangle)
+    isdiag = isempty(intriangle) && area(Δ) > atol(T)^2
 
     # adjust diagonal if necessary
     if !isdiag

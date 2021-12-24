@@ -20,9 +20,25 @@ paramdim(::Type{<:Ray}) = 1
 
 isconvex(::Type{<:Ray}) = true
 
+boundary(r::Ray) = r.p
+
 function (r::Ray)(t)
   if t < 0
     throw(DomainError(t, "r(t) is not defined for t < 0."))
   end
   r.p + t * r.v
 end
+
+"""
+    origin(ray)
+
+The starting point of the ray.
+"""
+origin(r::Ray) = r.p
+
+"""
+    direction(ray)
+
+The direction of the ray.
+"""
+direction(r::Ray) = r.v

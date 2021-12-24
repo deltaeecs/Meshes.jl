@@ -30,7 +30,7 @@ const PointSet{Dim,T} = Collection{Dim,T,Point{Dim,T}}
 
 A set of `points` (a.k.a. point cloud) seen as a single domain.
 
-## Example
+## Examples
 
 All point sets below are the same and contain two points in R³:
 
@@ -53,6 +53,8 @@ PointSet(coords::Vararg{V}) where {V<:AbstractVector} = PointSet(collect(coords)
 PointSet(coords::AbstractMatrix) = PointSet(Point.(eachcol(coords)))
 
 centroid(pset::PointSet, ind::Int) = pset[ind]
+
+centroid(pset::PointSet) = Point(sum(coordinates, pset) / nelements(pset))
 
 function Base.show(io::IO, pset::PointSet{Dim,T}) where {Dim,T}
   nelm = nelements(pset)

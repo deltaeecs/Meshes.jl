@@ -6,22 +6,39 @@
     Point{Dim,T}
 
 A point in `Dim`-dimensional space with coordinates of type `T`.
-The coordinates of the point provided upon construction are with
-respect to the canonical Euclidean basis.
 
-## Example
+The coordinates of the point are given with respect to the canonical
+Euclidean basis, and `Integer` coordinates are converted to `Float64`.
+
+## Examples
 
 ```julia
-O = Point(0.0, 0.0) # origin of 2D Euclidean space
+# 2D points
+A = Point(0.0, 1.0) # double precision as expected
+B = Point(0f0, 1f0) # single precision as expected
+C = Point(0, 0) # Integer is converted to Float64 by design
+D = Point2(0, 1) # explicitly ask for double precision
+E = Point2f(0, 1) # explicitly ask for single precision
+
+# 3D points
+F = Point(1.0, 2.0, 3.0) # double precision as expected
+G = Point(1f0, 2f0, 3f0) # single precision as expected
+H = Point(1, 2, 3) # Integer is converted to Float64 by design
+I = Point3(1, 2, 3) # explicitly ask for double precision
+J = Point3f(1, 2, 3) # explicitly ask for single precision
 ```
 
 ### Notes
 
 - Type aliases are `Point1`, `Point2`, `Point3`, `Point1f`, `Point2f`, `Point3f`
+- `Integer` coordinates are not supported because most geometric processing
+  algorithms assume a continuous space. The conversion to `Float64` avoids
+  `InexactError` and other unexpected results.
 """
 struct Point{Dim,T}
   coords::SVector{Dim,T}
-  Point{Dim,T}(coords::SVector) where {Dim,T} = new{Dim,T}(coords)
+  Point{Dim,T}(coords::SVector{Dim,T}) where {Dim,T} = new{Dim,T}(coords)
+  Point{Dim,T}(coords::SVector{Dim,T}) where {Dim,T<:Integer} = new{Dim,Float64}(coords)
 end
 
 # convenience constructors
@@ -42,6 +59,9 @@ const Point3  = Point{3,Float64}
 const Point1f = Point{1,Float32}
 const Point2f = Point{2,Float32}
 const Point3f = Point{3,Float32}
+
+# broadcast behavior
+Broadcast.broadcastable(p::Point) = Ref(p)
 
 """
     embeddim(point)
@@ -119,10 +139,10 @@ Base.isapprox(A::Point, B::Point; kwargs...) = isapprox(A.coords, B.coords; kwar
 
 Generalized inequality for non-negative orthant Rⁿ₊
 """
-⪯(A::Point{Dim,T}, B::Point{Dim,T}) where {Dim,T} = all(B - A .≥ zero(T))
-⪰(A::Point{Dim,T}, B::Point{Dim,T}) where {Dim,T} = all(A - B .≥ zero(T))
-≺(A::Point{Dim,T}, B::Point{Dim,T}) where {Dim,T} = all(B - A .> zero(T))
-≻(A::Point{Dim,T}, B::Point{Dim,T}) where {Dim,T} = all(A - B .> zero(T))
+⪯(A::Point{Dim,T}, B::Point{Dim,T}) where {Dim,T} = all(≥(zero(T)), B - A)
+⪰(A::Point{Dim,T}, B::Point{Dim,T}) where {Dim,T} = all(≥(zero(T)), A - B)
+≺(A::Point{Dim,T}, B::Point{Dim,T}) where {Dim,T} = all(>(zero(T)), B - A)
+≻(A::Point{Dim,T}, B::Point{Dim,T}) where {Dim,T} = all(>(zero(T)), A - B)
 
 """
     center(point)
@@ -137,6 +157,13 @@ center(p::Point) = p
 Return the `point` itself.
 """
 centroid(p::Point) = p
+
+"""
+    measure(point)
+
+Return the measure of `point`, which is zero.
+"""
+measure(::Point{Dim,T}) where {Dim,T} = zero(T)
 
 """
     rand(P::Type{<:Point}, n=1)

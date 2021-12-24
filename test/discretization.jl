@@ -1,5 +1,55 @@
-using Base: datatype_haspadding
 @testset "Discretization" begin
+  @testset "FanTriangulation" begin
+    pts  = P2[(0.,0.), (1.,0.), (1.,1.), (0.75,1.5), (0.25,1.5), (0.,1.)]
+    tris = [Triangle([pts[1], pts[i], pts[i+1]]) for i in 2:length(pts)-1]
+    hex  = Hexagon(pts)
+    mesh = discretize(hex, FanTriangulation())
+    @test nvertices(mesh) == 6
+    @test nelements(mesh) == 4
+    @test eltype(mesh) <: Triangle
+    @test vertices(mesh) == pts
+    @test collect(elements(mesh)) == tris
+  end
+
+  @testset "RegularDiscretization" begin
+    sphere = Sphere(P2(0,0), T(1))
+    mesh = discretize(sphere, RegularDiscretization(10))
+    @test nvertices(mesh) == 10
+    @test nelements(mesh) == 10
+    @test eltype(mesh) <: Segment
+    @test nvertices.(mesh) ⊆ [2]
+
+    sphere = Sphere(P3(0,0,0), T(1))
+    mesh = discretize(sphere, RegularDiscretization(10))
+    @test nvertices(mesh) == 10*10 + 2
+    @test nelements(mesh) == (10)*(10-1) + 2*(10)
+    @test eltype(mesh) <: Ngon
+    @test nvertices.(mesh) ⊆ [3,4]
+
+    ball = Ball(P2(0,0), T(1))
+    mesh = discretize(ball, RegularDiscretization(10))
+    @test nvertices(mesh) == 10*10 + 1
+    @test nelements(mesh) == (10)*(10-1) + 10
+    @test eltype(mesh) <: Ngon
+    @test nvertices.(mesh) ⊆ [3,4]
+  end
+
+  @testset "Dehn1899" begin
+    octa = Octagon(P2[(0.0,0.0), (0.5,-0.5), (1.0,0.0), (1.5,0.5),
+                      (1.0,1.0), (0.5,1.5), (0.0,1.0), (-0.5,0.5)])
+    mesh = discretize(octa, Dehn1899())
+    @test nvertices(mesh) == 8
+    @test nelements(mesh) == 6
+    @test eltype(mesh) <: Triangle
+
+    octa = Octagon(P3[(0.0,0.0,0.0), (0.5,-0.5,0.0), (1.0,0.0,0.0), (1.5,0.5,0.0),
+                      (1.0,1.0,0.0), (0.5,1.5,0.0), (0.0,1.0,0.0), (-0.5,0.5,0.0)])
+    mesh = discretize(octa, Dehn1899())
+    @test nvertices(mesh) == 8
+    @test nelements(mesh) == 6
+    @test eltype(mesh) <: Triangle
+  end
+
   @testset "FIST" begin
     𝒫 = Chain(P2[(0,0),(1,0),(1,1),(2,1),(2,2),(1,2),(0,0)])
     @test Meshes.ears(𝒫) == [2,4,5]
@@ -71,10 +121,17 @@ using Base: datatype_haspadding
       hole2 = P2[(0.6,0.2),(0.8,0.2),(0.8,0.4),(0.6,0.4),(0.6,0.2)]
       poly  = PolyArea(outer, [hole1, hole2])
       chain, _ = bridge(poly, width=0.01)
-      mesh  = discretize(chain, method)
+      mesh  = discretizewithin(chain, method)
       @test nvertices(mesh) == 16
       @test nelements(mesh) == 14
       @test all(t -> area(t) > zero(T), mesh)
+
+      # 3D chains
+      chain = Chain(P3[(0,0,0), (1,0,0), (1,1,0), (0,1,1), (0,0,0)])
+      mesh  = discretizewithin(chain, method)
+      @test vertices(mesh) == vertices(chain)
+      @test eltype(mesh) <: Triangle
+      @test nelements(mesh) == 2
     end
   end
 
@@ -182,5 +239,37 @@ using Base: datatype_haspadding
     mesh  = triangulate(multi)
     @test nvertices(mesh) == 8
     @test nelements(mesh) == 4
+
+    # triangulation of spheres
+    sphere = Sphere(P3(0,0,0), T(1))
+    mesh = triangulate(sphere)
+    @test eltype(mesh) <: Triangle
+    xs = coordinates.(vertices(mesh))
+    @test all(x -> norm(x) ≈ T(1), xs)
+
+    # triangulation of balls
+    ball = Ball(P2(0,0), T(1))
+    mesh = triangulate(ball)
+    @test eltype(mesh) <: Triangle
+    xs = coordinates.(vertices(mesh))
+    @test all(x -> norm(x) ≤ T(1) + eps(T), xs)
+
+    # triangulation of meshes
+    grid = CartesianGrid{T}(3, 3)
+    mesh = triangulate(grid)
+    gpts = vertices(grid)
+    mpts = vertices(mesh)
+    @test nvertices(mesh) == 16
+    @test nelements(mesh) == 18
+    @test collect(mpts) == collect(gpts)
+    @test eltype(mesh) <: Triangle
+    @test measure(mesh) == measure(grid)
+
+    if visualtests
+      p1 = plot(grid, fillcolor=false)
+      p2 = plot(mesh, fillcolor=false)
+      p = plot(p1, p2, layout=(1,2), size=(600,300))
+      @test_reference "data/triangulate-$T.png" p
+    end
   end
 end

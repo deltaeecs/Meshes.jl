@@ -14,7 +14,7 @@ for accurate evaluation. Horner's method, faster with a
 large number of points but less precise, can be used via
 `b(t, Horner())`.
 
-## Example
+## Examples
 
 ```julia
 BezierCurve(Point2[(0.,0.),(1.,-1.)])
@@ -100,4 +100,11 @@ function (curve::BezierCurve{Dim,T})(t, ::Horner) where {Dim,T}
 
   b₀ = bᵢ₋₁
   Point(b₀)
+end
+
+function boundary(curve::BezierCurve)
+  p = curve.controls
+  a = first(p)
+  b = last(p)
+  a == b ? nothing : PointSet([a, b])
 end

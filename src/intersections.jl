@@ -10,11 +10,32 @@ Return the intersection of two geometries `g1` and `g2`.
 Base.intersect(g1::Geometry, g2::Geometry) = get(intersecttype(g1, g2))
 
 """
-    intersecttype(g1, g2)
+    intersecttype([f], g1, g2)
 
-Return the intersection type of two geometries `g1` and `g2`.
+Compute the intersection type of two geometries `g1` and `g2`
+and apply function `f` to it. Default function is [`identity`](@ref).
+
+## Examples
+
+```julia
+intersecttype(g1, g2) do I
+  if I isa CrossingLines
+    # do something
+  else
+    # do nothing
+  end
+end
+```
+
+### Notes
+
+When a custom function `f` is used that reduces the number of
+return types, Julia is able to optimize the branches of the code
+and generate specialized code. This is not the case when
+`f === identity`.
 """
-function intersecttype end
+intersecttype(f, g1, g2) = intersecttype(f, g2, g1)
+intersecttype(g1, g2)    = intersecttype(identity, g1, g2)
 
 """
     Intersection
@@ -73,11 +94,31 @@ struct CornerTouchingBoxes{P<:Point} <: Intersection
   value::P
 end
 
+# ----------------------
+# RAY-BOX INTERSECTIONS
+# ----------------------
+
+struct CrossingRayBox{S<:Segment} <: Intersection
+  value::S
+end
+
+struct TouchingRayBox{P<:Point} <: Intersection
+  value::P
+end
+
 # -------------------------------
 # SEGMENT-TRIANGLE INTERSECTIONS
 # -------------------------------
 
 struct IntersectingSegmentTriangle{P<:Point} <: Intersection
+  value::P
+end
+
+# ---------------------------
+# RAY-TRIANGLE INTERSECTIONS
+# ---------------------------
+
+struct IntersectingRayTriangle{P<:Point} <: Intersection
   value::P
 end
 
@@ -145,7 +186,7 @@ function hasintersect(g1::Geometry{Dim,T}, g2::Geometry{Dim,T}) where {Dim,T}
 
   # first point in Minkowski difference
   P = minkowskipoint(g1, g2, d)
-  
+
   # origin of coordinate system
   O = minkowskiorigin(Dim, T)
 

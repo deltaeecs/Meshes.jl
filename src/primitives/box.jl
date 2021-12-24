@@ -8,7 +8,7 @@
 An axis-aligned box with `min` and `max` corners.
 See https://en.wikipedia.org/wiki/Hyperrectangle.
 
-## Example
+## Examples
 
 ```julia
 Box(Point(0,0,0), Point(1,1,1)) # unit cube
@@ -26,12 +26,20 @@ paramdim(::Type{<:Box{Dim}}) where {Dim} = Dim
 isconvex(::Type{<:Box}) = true
 
 Base.minimum(b::Box) = b.min
+
 Base.maximum(b::Box) = b.max
+
 Base.extrema(b::Box) = b.min, b.max
+
 center(b::Box) = Point((coordinates(b.max) + coordinates(b.min)) / 2)
+
 measure(b::Box) = prod(b.max - b.min)
+
 diagonal(b::Box) = norm(b.max - b.min)
+
 sides(b::Box) = b.max - b.min
+
+area(b::Box{2}) = measure(b)
 
 function vertices(b::Box{2})
   A = coordinates(b.min)
@@ -66,8 +74,8 @@ end
 
 function boundary(b::Box{3})
   v = vertices(b)
-  I = [(1,2,3,4),(2,1,5,6),(2,6,7,3),
-       (3,7,8,4),(4,8,5,1),(5,8,7,6)]
+  I = [(4,3,2,1),(6,5,1,2),(3,7,6,2),
+       (4,8,7,3),(1,5,8,4),(6,7,8,5)]
   SimpleMesh(v, connect.(I))
 end
 
