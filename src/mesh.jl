@@ -132,7 +132,9 @@ function Base.merge(m₁::Mesh, m₂::Mesh)
   points = [v₁; v₂]
 
   # concatenate connectivities
-  connec = e₁
+  pT = promote_type(eltype(e₁), eltype(e₂))
+  connec = pT[]
+  append!(connec, e₁)
   offset = length(v₁)
   for e in e₂
     c  = indices(e)
