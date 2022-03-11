@@ -17,10 +17,10 @@ end
 BlockPartition(sides) = BlockPartition(sides, false)
 BlockPartition(sides::NTuple; neighbors=false) =
   BlockPartition(SVector(sides), neighbors)
-BlockPartition(sides::Vararg{<:Number}; neighbors=false) =
+BlockPartition(sides::Vararg{T}; neighbors=false) where {T<:Number} =
   BlockPartition(SVector(sides), neighbors)
 
-function partition(object, method::BlockPartition)
+function partition(::AbstractRNG, object, method::BlockPartition)
   Dim = embeddim(object)
 
   psides = method.sides

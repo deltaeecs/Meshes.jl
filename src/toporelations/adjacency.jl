@@ -3,22 +3,29 @@
 # ------------------------------------------------------------------
 
 """
-    Adjacency{P,T}
+    Adjacency{P}(topology)
 
-The adjacency relation of rank `P` for topology of type `T`.
+The adjacency relation of rank `P` for a given `topology`.
 """
-struct Adjacency{P,T<:Topology} <: TopologicalRelation
+struct Adjacency{P,D,T<:Topology} <: TopologicalRelation
   topology::T
 end
 
-Adjacency{P}(topology::T) where {P,T} = Adjacency{P,T}(topology)
+function Adjacency{P}(topology) where {P}
+  D = paramdim(topology)
+  T = typeof(topology)
+
+  @assert D ≥ P "invalid adjacency relation"
+
+  Adjacency{P,D,T}(topology)
+end
 
 # -------------------
 # HALF-EDGE TOPOLOGY
 # -------------------
 
-function (𝒜::Adjacency{0,T})(vert::Integer) where {T<:HalfEdgeTopology}
-  e = half4vert(vert, 𝒜.topology)
+function (𝒜::Adjacency{0,2,T})(vert::Integer) where {T<:HalfEdgeTopology}
+  e = half4vert(𝒜.topology, vert)
 
   # initialize result
   vertices = [e.half.head]

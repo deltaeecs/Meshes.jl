@@ -13,13 +13,73 @@ end
 
 GridTopology(dims::Vararg{Int,D}) where {D} = GridTopology{D}(dims)
 
-"""
-    size(t)
+paramdim(::GridTopology{D}) where {D} = D
 
-Return the size of the grid topology `t`, i.e. the
-number of elements along each dimension of the grid.
-"""
 Base.size(t::GridTopology) = t.dims
+
+"""
+    elem2cart(t, e)
+
+Return the Cartesian indices of the `e`-th element of
+the grid topology `t`.
+"""
+elem2cart(t::GridTopology, e) = CartesianIndices(t.dims)[e].I
+
+"""
+    cart2elem(t, i, j, k, ...)
+
+Return the linear index of the element of the
+grid topology `t` with Cartesian indices
+`i`, `j`, `k`, ...
+"""
+cart2elem(t::GridTopology, ijk...) = LinearIndices(t.dims)[ijk...]
+
+"""
+    corner2cart(t, v)
+
+Return the Cartesian indices of the element of the
+grid topology `t` with top left vertex `v`.
+"""
+corner2cart(t, v) = CartesianIndices(t.dims .+ 1)[v].I
+
+"""
+    cart2corner(t, i, j, k, ...)
+
+Return the linear index of the top left vertex of the
+element of the grid topology `t` with Cartesian indices
+`i`, `j`, `k`, ...
+"""
+cart2corner(t::GridTopology, ijk...) = LinearIndices(t.dims .+ 1)[ijk...]
+
+"""
+    elem2corner(t, e)
+
+Return the linear index of the top left vertex of the
+`e`-th element of the grid topology `t`.
+"""
+elem2corner(t::GridTopology, e) = cart2corner(t, elem2cart(t, e)...)
+
+"""
+    corner2elem(t, v)
+
+Return the linear index of the element of the grid
+topology `t` with top left vertex `v`
+"""
+corner2elem(t::GridTopology, v) = cart2elem(t, corner2cart(t, v)...)
+
+"""
+    rank2type(t, rank)
+
+Return the polytope type of given `rank` for the grid
+topology `t`.
+"""
+function rank2type(::GridTopology{D}, rank::Integer) where {D}
+  @assert rank ≤ D "invalid rank for grid topology"
+  rank == 1 && return Segment
+  rank == 2 && return Quadrangle
+  rank == 3 && return Hexahedron
+  throw(ErrorException("not implemented"))
+end
 
 # ---------------------
 # HIGH-LEVEL INTERFACE
@@ -38,88 +98,29 @@ function faces(t::GridTopology{D}, rank) where {D}
 end
 
 function element(t::GridTopology{D}, ind) where {D}
-  l2c(ind) = CartesianIndices(t.dims)[ind].I
-  c2l(ind...) = LinearIndices(t.dims .+ 1)[ind...]
-  if D == 1
-    i1 = ind
-    i2 = ind+1
-    connect((i1, i2), Segment)
-  elseif D == 2
-    i, j = l2c(ind)
-    i1 = c2l(i  , j  )
-    i2 = c2l(i+1, j  )
-    i3 = c2l(i+1, j+1)
-    i4 = c2l(i  , j+1)
-    connect((i1, i2, i3, i4), Quadrangle)
-  elseif D == 3
-    i, j, k = l2c(ind)
-    i1 = c2l(i  , j  , k  )
-    i2 = c2l(i+1, j  , k  )
-    i3 = c2l(i+1, j+1, k  )
-    i4 = c2l(i  , j+1, k  )
-    i5 = c2l(i  , j  , k+1)
-    i6 = c2l(i+1, j  , k+1)
-    i7 = c2l(i+1, j+1, k+1)
-    i8 = c2l(i  , j+1, k+1)
-    connect((i1, i2, i3, i4, i5, i6, i7, i8), Hexahedron)
-  else
-    throw(ErrorException("not implemented"))
-  end
+  ∂ = Boundary{D,0}(t)
+  T = rank2type(t, D)
+  connect(Tuple(∂(ind)), T)
 end
 
 nelements(t::GridTopology) = prod(t.dims)
 
 function facet(t::GridTopology{D}, ind) where {D}
-  l2c(ind) = CartesianIndices(t.dims)[ind].I
-  c2l(ind...) = LinearIndices(t.dims .+ 1)[ind...]
-  if D == 1
-    ind
-  elseif D == 2
-    N = 2prod(t.dims)
-    if ind ≤ N
-      if isodd(ind)
-        i, j = l2c((ind + 1) ÷ 2)
-        i1 = c2l(i,   j)
-        i2 = c2l(i+1, j)
-      else
-        i, j = l2c(ind ÷ 2)
-        i1 = c2l(i,   j)
-        i2 = c2l(i, j+1)
-      end
-    else
-      if isodd(ind)
-        i = t.dims[1] + 1
-        j = ((ind - N) + 1) ÷ 2
-        i1 = c2l(i,   j)
-        i2 = c2l(i, j+1)
-      else
-        i = (ind - N) ÷ 2
-        j = t.dims[2] + 1
-        i1 = c2l(i,   j)
-        i2 = c2l(i+1, j)
-      end
-    end
-    connect((i1, i2), Segment)
-  elseif D == 3
-    throw(ErrorException("not implemented"))
-  else
-    throw(ErrorException("not implemented"))
-  end
+  ∂ = Boundary{D-1,0}(t)
+  T = rank2type(t, D-1)
+  connect(Tuple(∂(ind)), T)
 end
 
-function nfacets(t::GridTopology{D}) where {D}
-  if D == 1
-    t.dims[1] + 1
-  elseif D == 2
-    2prod(t.dims) +
-    t.dims[1] +
-    t.dims[2]
-  elseif D == 3
-    3prod(t.dims) +
-    prod(t.dims[[1,2]]) +
-    prod(t.dims[[1,3]]) +
-    prod(t.dims[[2,3]])
-  else
-    throw(ErrorException("not implemented"))
-  end
-end
+nfacets(t::GridTopology{1}) =
+  t.dims[1] + 1
+
+nfacets(t::GridTopology{2}) =
+  2prod(t.dims) +
+  t.dims[1] +
+  t.dims[2]
+
+nfacets(t::GridTopology{3}) =
+  3prod(t.dims) +
+  prod(t.dims[[1,2]]) +
+  prod(t.dims[[1,3]]) +
+  prod(t.dims[[2,3]])
