@@ -111,6 +111,12 @@
     t = Triangle(P3(0,0,0), P3(2,0,0), P3(0,2,2))
     @test isapprox(normal(t), Vec(0,-1/sqrt(2),1/sqrt(2)))
 
+    # test convexity of Triangle
+    t = Triangle(P2[(0,0),(1,0),(0,1)])
+    @test isconvex(t)
+    t = Triangle(P3[(0,0,0),(1,0,0),(0,1,0)])
+    @test isconvex(t)
+
     # Quadrangle in 2D space
     q = Quadrangle(P2(0,0), P2(1,0), P2(1,1), P2(0,1))
     @test area(q) == T(1)
@@ -154,11 +160,18 @@
     @test nvertices(Hexahedron) == 8
 
     t = Tetrahedron(P3[(0,0,0),(1,0,0),(0,1,0),(0,0,1)])
+    @test issimplex(t)
+    @test isconvex(t)
     @test measure(t) == T(1/6)
     m = boundary(t)
+    n = normal.(m)
     @test m isa Mesh
     @test nvertices(m) == 4
     @test nelements(m) == 4
+    @test n[1] == T[0,0,-1]
+    @test n[2] == T[0,-1,0]
+    @test n[3] == T[-1,0,0]
+    @test all(>(0), n[4])
 
     h = Hexahedron(P3[(0,0,0),(1,0,0),(1,1,0),(0,1,0),
                       (0,0,1),(1,0,1),(1,1,1),(0,1,1)])
@@ -191,6 +204,16 @@
     @test m isa Mesh
     @test nvertices(m) == 8
     @test nelements(m) == 6
+
+    p = Pyramid(P3[(0,0,0),(1,0,0),(1,1,0),(0,1,0),(0,0,1)])
+    m = boundary(p)
+    @test m isa Mesh
+    @test nelements(m) == 5
+    @test m[1] isa Quadrangle
+    @test m[2] isa Triangle
+    @test m[3] isa Triangle
+    @test m[4] isa Triangle
+    @test m[5] isa Triangle
   end
 
   @testset "Chains" begin
