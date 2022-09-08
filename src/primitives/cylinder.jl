@@ -46,9 +46,13 @@ isconvex(::Type{<:Cylinder}) = true
 
 radius(c::Cylinder) = c.radius
 
-axis(c::Cylinder) = Line(origin(c.bot), origin(c.top))
+bottom(c::Cylinder) = c.bot
 
-planes(c::Cylinder) = (c.bot, c.top)
+top(c::Cylinder) = c.top
+
+center(c::Cylinder) = center(boundary(c))
+
+axis(c::Cylinder) = axis(boundary(c))
 
 isright(c::Cylinder) = isright(boundary(c))
 

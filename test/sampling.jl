@@ -37,11 +37,24 @@
   end
 
   @testset "RegularSampling" begin
+    # fix import conflict with Plots
+    BezierCurve = Meshes.BezierCurve
+
     b = Box(P2(0, 0), P2(2, 2))
     ps = sample(b, RegularSampling(3))
     @test collect(ps) == P2[(0,0),(1,0),(2,0),(0,1),(1,1),(2,1),(0,2),(1,2),(2,2)]
     ps = sample(b, RegularSampling(2, 3))
     @test collect(ps) == P2[(0,0),(2,0),(0,1),(2,1),(0,2),(2,2)]
+
+    b = BezierCurve([P2(0,0), P2(1,0), P2(1,1)])
+    ps = sample(b, RegularSampling(4))
+    ts = P2[(0.0, 0.0),
+            (0.5555555555555556, 0.1111111111111111),
+            (0.8888888888888888, 0.4444444444444444),
+            (1.0, 1.0)]
+    for (p, t) in zip(ps, ts)
+      @test p ≈ t
+    end
 
     s = Sphere(P2(0, 0), T(2))
     ps = sample(s, RegularSampling(4))
@@ -92,6 +105,40 @@
     for (p, t) in zip(ps, ts)
       @test p ≈ t
     end
+
+    # cylinder surface with parallel planes
+    c = CylinderSurface(T(1),
+                        Plane(P3(0,0,0), V3(0,0,1)),
+                        Plane(P3(0,0,1), V3(0,0,1)))
+    ps = sample(c, RegularSampling(20, 10))
+    cs = coordinates.(ps)
+    xs = getindex.(cs, 1)
+    ys = getindex.(cs, 2)
+    zs = getindex.(cs, 3)
+    @test length(cs) == 200
+    @test all(T(-1) ≤ x ≤ T(1) for x in xs)
+    @test all(T(-1) ≤ y ≤ T(1) for y in ys)
+    @test all( T(0) ≤ z ≤ T(1) for z in zs)
+
+    # cylinder surface with parallel shifted planes
+    c = CylinderSurface(T(1),
+                        Plane(P3(0,0,0), V3(0,0,1)),
+                        Plane(P3(1,1,1), V3(0,0,1)))
+    ps = sample(c, RegularSampling(20, 10))
+    cs = coordinates.(ps)
+    xs = getindex.(cs, 1)
+    ys = getindex.(cs, 2)
+    zs = getindex.(cs, 3)
+    @test length(cs) == 200
+    @test all(T(0) - eps(T) ≤ z ≤ T(1) + eps(T) for z in zs)
+
+    # cylinder surface with non-parallel planes
+    c = CylinderSurface(T(1),
+                        Plane(P3(0,0,0), V3(1,0,1)),
+                        Plane(P3(1,1,1), V3(0,1,1)))
+    ps = sample(c, RegularSampling(20, 10))
+    cs = coordinates.(ps)
+    @test length(cs) == 200
 
     s = Segment(P2(0, 0), P2(1, 1))
     ps = sample(s, RegularSampling(2))

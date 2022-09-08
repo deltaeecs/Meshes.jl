@@ -91,6 +91,14 @@ Tells whether or not the `geometry` is simplex.
 issimplex(::Type{<:Geometry}) = false
 issimplex(g::Geometry) = issimplex(typeof(g))
 
+"""
+    isperiodic(geometry)
+
+Tells whether or not the `geometry` is periodic
+along each parametric dimension.
+"""
+isperiodic(g::Geometry) = isperiodic(typeof(g))
+
 # ----------------
 # IMPLEMENTATIONS
 # ----------------
@@ -144,7 +152,11 @@ measure(multi::Multi) = sum(measure, multi.items)
 
 area(multi::Multi{Dim,T,<:Polygon}) where{Dim,T} = measure(multi)
 
-boundary(multi::Multi) = Multi([boundary(geom) for geom in multi])
+function boundary(multi::Multi)
+  bounds = [boundary(geom) for geom in multi]
+  valid  = filter(!isnothing, bounds)
+  isempty(valid) ? nothing : Multi(valid)
+end
 
 chains(multi::Multi{Dim,T,<:Polygon}) where {Dim,T} =
   [chain for geom in multi for chain in chains(geom)]

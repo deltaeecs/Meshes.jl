@@ -49,27 +49,39 @@
   end
 
   @testset "Planes" begin
-    p = Plane(P3(0, 0, 0), V3(1, 0, 0), V3(0, 1, 0))
-    @test p(T(1), T(0)) == P3(1, 0, 0)
+    p = Plane(P3(0,0,0), V3(1,0,0), V3(0,1,0))
+    @test p(T(1), T(0)) == P3(1,0,0)
     @test paramdim(p) == 2
     @test embeddim(p) == 3
     @test isconvex(p)
-    @test origin(p) == P3(0, 0, 0)
-    @test normal(p) == Vec(0, 0, 1)
+    @test origin(p) == P3(0,0,0)
+    @test normal(p) == Vec(0,0,1)
     @test isnothing(boundary(p))
 
-    p = Plane(P3(0, 0, 0), V3(0, 0, 1))
-    @test p(T(1), T(0)) == P3(1, 0, 0)
-    @test p(T(0), T(1)) == P3(0, 1, 0)
+    p = Plane(P3(0,0,0), V3(0,0,1))
+    @test p(T(1), T(0)) == P3(1,0,0)
+    @test p(T(0), T(1)) == P3(0,1,0)
 
-    p1 = Plane(P3(0, 0, 0), V3(1, 0, 0), V3(0, 1, 0))
-    p2 = Plane(P3(0, 0, 0), V3(0, 0, 1))
-    @test p1 == p2
+    p₁ = Plane(P3(0,0,0), V3(1,0,0), V3(0,1,0))
+    p₂ = Plane(P3(0,0,0), V3(0,1,0), V3(1,0,0))
+    @test p₁ == p₂
+    p₁ = Plane(P3(0,0,0),  V3(1,1,0))
+    p₂ = Plane(P3(0,0,0), -V3(1,1,0))
+    @test p₁ == p₂
+
+    # normal to plane has norm one regardless of basis
+    p = Plane(P3(0,0,0), V3(2,0,0), V3(0,3,0))
+    n = normal(p)
+    @test isapprox(norm(n), T(1), atol=atol(T))
   end
 
-  @testset "Bezier curves" begin
+  @testset "BezierCurve" begin
     # fix import conflict with Plots
     BezierCurve = Meshes.BezierCurve
+
+    b = BezierCurve(P2(0,0),P2(0.5,1),P2(1,0))
+    @test embeddim(b) == 2
+    @test paramdim(b) == 1
 
     b = BezierCurve(P2(0,0),P2(0.5,1),P2(1,0))
     for method in [DeCasteljau(), Horner()]
@@ -93,6 +105,24 @@
   end
 
   @testset "Boxes" begin
+    b = Box(P1(0), P1(1))
+    @test embeddim(b) == 1
+    @test paramdim(b) == 1
+    @test coordtype(b) == T
+    @test minimum(b) == P1(0)
+    @test maximum(b) == P1(1)
+    @test extrema(b) == (P1(0), P1(1))
+    @test isconvex(b)
+
+    b = Box(P1(0), P1(1))
+    @test vertices(b) == [P1(0), P1(1)]
+    @test measure(b) == T(1)
+    @test P1(0) ∈ b
+    @test P1(1) ∈ b
+    @test P1(0.5) ∈ b
+    @test P1(-0.5) ∉ b
+    @test P1(1.5) ∉ b
+
     b = Box(P2(0,0), P2(1,1))
     @test embeddim(b) == 2
     @test paramdim(b) == 2
@@ -176,6 +206,18 @@
     @test extrema(s) == (P3(-1,-1,-1), P3(1,1,1))
     @test !isconvex(s)
     @test isnothing(boundary(s))
+    @test isperiodic(s) == (true, true)
+
+    s = Sphere(P2(0,0), T(1))
+    @test embeddim(s) == 2
+    @test paramdim(s) == 1
+    @test coordtype(s) == T
+    @test Meshes.center(s) == P2(0, 0)
+    @test radius(s) == T(1)
+    @test extrema(s) == (P2(-1,-1), P2(1,1))
+    @test !isconvex(s)
+    @test isnothing(boundary(s))
+    @test isperiodic(s) == (true,)
 
     # Sphere constructor works with both float and integer radius
     s  = Sphere(P3(1,2,3), T(4))
@@ -222,15 +264,19 @@
     @test paramdim(c) == 3
     @test coordtype(c) == T
     @test radius(c) == T(5)
+    @test bottom(c) == Plane(P3(1,2,3), V3(0,0,1))
+    @test top(c) == Plane(P3(4,5,6), V3(0,0,1))
     @test axis(c) == Line(P3(1,2,3), P3(4,5,6))
-    @test planes(c) == (Plane(P3(1,2,3), V3(0,0,1)), Plane(P3(4,5,6), V3(0,0,1)))
     @test isconvex(c)
     @test !isright(c)
 
     c = Cylinder(T(1), Segment(P3(0,0,0), P3(0,0,1)))
     @test radius(c) == T(1)
+    @test bottom(c) == Plane(P3(0,0,0), V3(0,0,1))
+    @test top(c) == Plane(P3(0,0,1), V3(0,0,1))
+    @test center(c) == P3(0.0,0.0,0.5)
+    @test centroid(c) == P3(0.0,0.0,0.5)
     @test axis(c) == Line(P3(0,0,0), P3(0,0,1))
-    @test planes(c) == (Plane(P3(0,0,0), V3(0,0,1)), Plane(P3(0,0,1), V3(0,0,1)))
     @test isright(c)
     @test boundary(c) == CylinderSurface(T(1), Segment(P3(0,0,0), P3(0,0,1)))
   end
@@ -241,8 +287,11 @@
     @test paramdim(c) == 2
     @test coordtype(c) == T
     @test radius(c) == T(2)
+    @test bottom(c) == Plane(P3(0,0,0), V3(0,0,1))
+    @test top(c) == Plane(P3(0,0,1), V3(0,0,1))
+    @test center(c) == P3(0.0,0.0,0.5)
+    @test centroid(c) == P3(0.0,0.0,0.5)
     @test axis(c) == Line(P3(0,0,0), P3(0,0,1))
-    @test planes(c) == (Plane(P3(0,0,0), V3(0,0,1)), Plane(P3(0,0,1), V3(0,0,1)))
     @test isconvex(c)
     @test isright(c)
     @test isnothing(boundary(c))

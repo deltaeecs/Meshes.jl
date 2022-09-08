@@ -32,11 +32,13 @@
       @test centroid(v, i) == centroid(e)
     end
 
-    if visualtests
-      d = CartesianGrid{T}(10, 10)
-      v = view(d, 1:50)
-      @test_reference "data/domain-view-$T.png" plot(v)
-    end
+    # view of view stores the correct domain
+    g = CartesianGrid{T}(10, 10)
+    v = view(view(g, 11:20), 1:3)
+    @test v isa DomainView{2,T,<:CartesianGrid}
+    @test v[1] == g[11]
+    @test v[2] == g[12]
+    @test v[3] == g[13]
   end
 
   @testset "Data" begin

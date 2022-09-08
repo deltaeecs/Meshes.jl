@@ -153,10 +153,10 @@ The algorithm works with any geometry that has a well-defined [`supportfun`](@re
 function hasintersect(g1::Geometry{Dim,T}, g2::Geometry{Dim,T}) where {Dim,T}
   # handle non-convex geometries
   if !isconvex(g1)
-    d1 = triangulate(g1)
+    d1 = simplexify(g1)
     return hasintersect(d1, g2)
   elseif !isconvex(g2)
-    d2 = triangulate(g2)
+    d2 = simplexify(g2)
     return hasintersect(g1, d2)
   end
 
@@ -223,7 +223,7 @@ end
 
 # support point in Minkowski difference
 function minkowskipoint(g1::Geometry{Dim,T}, g2::Geometry{Dim,T}, d) where {Dim,T}
-  n = Vec{Dim}(d[1:Dim])
+  n = Vec{Dim,T}(d[1:Dim])
   v = supportfun(g1, n) - supportfun(g2, -n)
   Point(ntuple(i-> i ≤ Dim ? v[i] : zero(T), max(Dim, 3)))
 end

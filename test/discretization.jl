@@ -12,6 +12,16 @@
   end
 
   @testset "RegularDiscretization" begin
+    # fix import conflict with Plots
+    BezierCurve = Meshes.BezierCurve
+
+    bezier = BezierCurve([P2(0,0), P2(1,0), P2(1,1)])
+    mesh = discretize(bezier, RegularDiscretization(10))
+    @test nvertices(mesh) == 11
+    @test nelements(mesh) == 10
+    @test eltype(mesh) <: Segment
+    @test nvertices.(mesh) ⊆ [2]
+
     sphere = Sphere(P2(0,0), T(1))
     mesh = discretize(sphere, RegularDiscretization(10))
     @test nvertices(mesh) == 10
@@ -30,6 +40,15 @@
     mesh = discretize(ball, RegularDiscretization(10))
     @test nvertices(mesh) == 10*10 + 1
     @test nelements(mesh) == (10)*(10-1) + 10
+    @test eltype(mesh) <: Ngon
+    @test nvertices.(mesh) ⊆ [3,4]
+
+    cylsurf = CylinderSurface(T(1),
+                              Plane(P3(0,0,0), V3(0,0,1)),
+                              Plane(P3(1,1,1), V3(0,0,1)))
+    mesh = discretize(cylsurf, RegularDiscretization(10))
+    @test nvertices(mesh) == 10*10 + 2
+    @test nelements(mesh) == 10*(10-1) + 2*10
     @test eltype(mesh) <: Ngon
     @test nvertices.(mesh) ⊆ [3,4]
   end
@@ -219,15 +238,66 @@
     end
   end
 
-  @testset "Triangulate" begin
-    # triangulate is a helper function that calls an
+  @testset "Simplexify" begin
+    # fix import conflict with Plots
+    BezierCurve = Meshes.BezierCurve
+
+    # simplexify is a helper function that calls an
     # appropriate discretization method depending on
     # the geometry type that is given to it
+    box = Box(P1(0), P1(1))
+    msh = simplexify(box)
+    @test eltype(msh) <: Segment
+    @test topology(msh) == GridTopology(1)
+    @test nvertices(msh) == 2
+    @test nelements(msh) == 1
+    @test msh[1] == Segment(P1(0), P1(1))
+
+    seg = Segment(P1(0), P1(1))
+    msh = simplexify(seg)
+    @test eltype(msh) <: Segment
+    @test topology(msh) == GridTopology(1)
+    @test nvertices(msh) == 2
+    @test nelements(msh) == 1
+    @test msh[1] == Segment(P1(0), P1(1))
+
+    chn = Chain(P2[(0,0), (1,0), (1,1)])
+    msh = simplexify(chn)
+    @test eltype(msh) <: Segment
+    @test nvertices(msh) == 3
+    @test nelements(msh) == 2
+    @test msh[1] == Segment(P2(0,0), P2(1,0))
+    @test msh[2] == Segment(P2(1,0), P2(1,1))
+    chn = Chain(P2[(0,0), (1,0), (1,1), (0,0)])
+    msh = simplexify(chn)
+    @test eltype(msh) <: Segment
+    @test nvertices(msh) == 3
+    @test nelements(msh) == 3
+    @test msh[1] == Segment(P2(0,0), P2(1,0))
+    @test msh[2] == Segment(P2(1,0), P2(1,1))
+    @test msh[3] == Segment(P2(1,1), P2(0,0))
+
+    sph = Sphere(P2(0,0), T(1))
+    msh = simplexify(sph)
+    @test eltype(msh) <: Segment
+    @test nvertices(msh) == nelements(msh)
+
+    bez = BezierCurve(P2[(0,0),(1,0),(1,1)])
+    msh = simplexify(bez)
+    @test eltype(msh) <: Segment
+    @test nvertices(msh) == nelements(msh) + 1
+
+    grid = CartesianGrid(10)
+    msh  = simplexify(grid)
+    @test msh == grid
+    @test nvertices(msh) == 11
+    @test nelements(msh) == 10
+
     box  = Box(P2(0,0), P2(1,1))
     ngon = Quadrangle(P2[(0,0),(1,0),(1,1),(0,1)])
     poly = readpoly(T, joinpath(datadir, "taubin.line"))
     for geom in [box, ngon, poly]
-      mesh = triangulate(geom)
+      mesh = simplexify(geom)
       @test Set(vertices(geom)) == Set(vertices(mesh))
       @test nelements(mesh) == length(vertices(mesh)) - 2
     end
@@ -236,27 +306,36 @@
     box1  = Box(P2(0,0), P2(1,1))
     box2  = Box(P2(1,1), P2(2,2))
     multi = Multi([box1, box2])
-    mesh  = triangulate(multi)
+    mesh  = simplexify(multi)
     @test nvertices(mesh) == 8
     @test nelements(mesh) == 4
 
     # triangulation of spheres
     sphere = Sphere(P3(0,0,0), T(1))
-    mesh = triangulate(sphere)
+    mesh = simplexify(sphere)
     @test eltype(mesh) <: Triangle
     xs = coordinates.(vertices(mesh))
     @test all(x -> norm(x) ≈ T(1), xs)
 
+    # triangulation of cylinder surfaces
+    cylsurf = CylinderSurface(T(1))
+    mesh = simplexify(cylsurf)
+    @test eltype(mesh) <: Triangle
+    xs = coordinates.(vertices(mesh))
+    @test all(x -> T(-1) ≤ x[1] ≤ T(1), xs)
+    @test all(x -> T(-1) ≤ x[2] ≤ T(1), xs)
+    @test all(x ->  T(0) ≤ x[3] ≤ T(1), xs)
+
     # triangulation of balls
     ball = Ball(P2(0,0), T(1))
-    mesh = triangulate(ball)
+    mesh = simplexify(ball)
     @test eltype(mesh) <: Triangle
     xs = coordinates.(vertices(mesh))
     @test all(x -> norm(x) ≤ T(1) + eps(T), xs)
 
     # triangulation of meshes
     grid = CartesianGrid{T}(3, 3)
-    mesh = triangulate(grid)
+    mesh = simplexify(grid)
     gpts = vertices(grid)
     mpts = vertices(mesh)
     @test nvertices(mesh) == 16
@@ -266,10 +345,10 @@
     @test measure(mesh) == measure(grid)
 
     if visualtests
-      p1 = plot(grid, fillcolor=false)
-      p2 = plot(mesh, fillcolor=false)
-      p = plot(p1, p2, layout=(1,2), size=(600,300))
-      @test_reference "data/triangulate-$T.png" p
+      fig = Mke.Figure(resolution=(600, 300))
+      viz(fig[1,1], grid, showfacets=true)
+      viz(fig[1,2], mesh, showfacets=true)
+      @test_reference "data/triangulate-$T.png" fig
     end
   end
 end

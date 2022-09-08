@@ -1,9 +1,5 @@
 @testset "Meshes" begin
   @testset "CartesianGrid" begin
-    @test isgrid(CartesianGrid{1,T})
-    @test isgrid(CartesianGrid{2,T})
-    @test isgrid(CartesianGrid{3,T})
-
     grid = CartesianGrid{T}(100)
     @test embeddim(grid) == 1
     @test coordtype(grid) == T
@@ -11,7 +7,7 @@
     @test minimum(grid) == P1(0)
     @test maximum(grid) == P1(100)
     @test extrema(grid) == (P1(0), P1(100))
-    @test spacing(grid) == T[1]
+    @test spacing(grid) == T.((1,))
     @test nelements(grid) == 100
     @test eltype(grid) <: Segment{1,T}
     @test measure(grid) ≈ T(100)
@@ -23,7 +19,7 @@
     @test minimum(grid) == P2(0, 0)
     @test maximum(grid) == P2(200, 100)
     @test extrema(grid) == (P2(0, 0), P2(200, 100))
-    @test spacing(grid) == T[1, 1]
+    @test spacing(grid) == T.((1, 1))
     @test nelements(grid) == 200*100
     @test eltype(grid) <: Quadrangle{2,T}
     @test measure(grid) ≈ T(200*100)
@@ -35,7 +31,7 @@
     @test minimum(grid) == P3(0, 0, 0)
     @test maximum(grid) == P3(200, 100, 50)
     @test extrema(grid) == (P3(0, 0, 0), P3(200, 100, 50))
-    @test spacing(grid) == T[1, 1, 1]
+    @test spacing(grid) == T.((1, 1, 1))
     @test nelements(grid) == 200*100*50
     @test eltype(grid) <: Hexahedron{3,T}
     @test measure(grid) ≈ T(200*100*50)
@@ -46,7 +42,7 @@
     @test size(grid) == (10, 10, 10)
     @test minimum(grid) == P3(0, 0, 0)
     @test maximum(grid) == P3(1, 1, 1)
-    @test spacing(grid) == T[0.1, 0.1, 0.1]
+    @test spacing(grid) == T.((0.1, 0.1, 0.1))
 
     grid = CartesianGrid(T.((-1.,-1.)), T.((1.,1.)), dims=(200,100))
     @test embeddim(grid) == 2
@@ -54,7 +50,7 @@
     @test size(grid) == (200, 100)
     @test minimum(grid) == P2(-1., -1.)
     @test maximum(grid) == P2(1., 1.)
-    @test spacing(grid) == T[2/200, 2/100]
+    @test spacing(grid) == T.((2/200, 2/100))
     @test nelements(grid) == 200*100
     @test eltype(grid) <: Quadrangle{2,T}
 
@@ -65,7 +61,7 @@
     @test minimum(grid) == P3(0, 0, 0)
     @test maximum(grid) == P3(100, 50, 25)
     @test extrema(grid) == (P3(0, 0, 0), P3(100, 50, 25))
-    @test spacing(grid) == T[5, 5, 5]
+    @test spacing(grid) == T.((5, 5, 5))
     @test nelements(grid) == 20*10*5
     @test eltype(grid) <: Hexahedron{3,T}
     @test vertices(grid[1]) == P3[(0, 0, 0), (5, 0, 0), (5, 5, 0), (0, 5, 0), (0, 0, 5), (5, 0, 5), (5, 5, 5), (0, 5, 5)]
@@ -78,7 +74,7 @@
     @test size(grid) == (10, 10)
     @test minimum(grid) == P2(0., 0.)
     @test maximum(grid) == P2(10., 10.)
-    @test spacing(grid) == T[1, 1]
+    @test spacing(grid) == T.((1, 1))
     @test nelements(grid) == 10*10
     @test eltype(grid) <: Quadrangle{2,T}
 
@@ -107,9 +103,9 @@
     @test maximum(sub) == P2(5,8)
 
     # subgrid with comparable vertices of grid
-    grid = CartesianGrid((10,10), P2(0.0,0.0), V2(1.2,1.2))
+    grid = CartesianGrid((10,10), P2(0.0,0.0), T.((1.2,1.2)))
     sub = grid[2:4, 5:7]
-    @test sub == CartesianGrid((3,3), P2(0.0,0.0), V2(1.2,1.2), (0,-3))
+    @test sub == CartesianGrid((3,3), P2(0.0,0.0), T.((1.2,1.2)), (0,-3))
     ind = reshape(reshape(1:121, 11, 11)[2:5, 5:8], :)
     @test vertices(grid)[ind] == vertices(sub)
 
@@ -129,7 +125,7 @@
     @test grid[2] == Quadrangle(P2[(1,0), (2,0), (2,1), (1,1)])
 
     # expand CartesianGrid with comparable vertices
-    grid = CartesianGrid((10,10), P2(0.0,0.0), V2(1.,1.))
+    grid = CartesianGrid((10,10), P2(0.0,0.0), T.((1.,1.)))
     left, right = (1,1), (1,1)
     newdim = size(grid) .+ left .+ right
     newoffset = offset(grid) .+ left
@@ -159,20 +155,9 @@
     elseif T == Float64
       @test sprint(show, MIME"text/plain"(), grid) == "200×100 CartesianGrid{2,Float64}\n  minimum: Point(0.0, 0.0)\n  maximum: Point(200.0, 100.0)\n  spacing: (1.0, 1.0)"
     end
-
-    if visualtests
-      @test_reference "data/grid-1D-$T.png" plot(CartesianGrid{T}(10))
-      @test_reference "data/grid-2D-$T.png" plot(CartesianGrid{T}(10,20))
-      @test_reference "data/grid-3D-$T.png" plot(CartesianGrid{T}(10,20,30))
-      @test_reference "data/grid-1D-$T-data.png" plot(CartesianGrid{T}(10),[1,2,3,4,5,5,4,3,2,1])
-      @test_reference "data/grid-2D-$T-data.png" plot(CartesianGrid{T}(10,10),1:100)
-      # @test_reference "data/grid3D-data.png" plot(RegularGrid(10,10,10),1:1000)
-    end
   end
 
   @testset "SimpleMesh" begin
-    @test !isgrid(SimpleMesh)
-
     points = P2[(0,0), (1,0), (0,1), (1,1), (0.5,0.5)]
     connec = connect.([(1,2,5),(2,4,5),(4,3,5),(3,1,5)], Triangle)
     mesh = SimpleMesh(points, connec)

@@ -10,8 +10,25 @@ Base.view(domain::Domain, inds) = DomainView(domain, inds)
 Base.view(data::Data, inds) = DataView(data, inds)
 
 # specialize view to avoid infinite loops
+Base.view(v::DomainView, inds::AbstractVector{Int}) =
+  DomainView(getfield(v, :domain), getfield(v, :inds)[inds])
 Base.view(v::DataView, inds::AbstractVector{Int}) =
   DataView(getfield(v, :data), getfield(v, :inds)[inds])
+
+# ---------------------
+# UNVIEWS WITH INDICES
+# ---------------------
+
+"""
+    unview(object)
+
+Return the underlying domain/data of the `object` and
+the indices of the view. If the `object` is not a view,
+then return the `object` with all its indices as a fallback.
+"""
+unview(object) = object, 1:nelements(object)
+unview(v::DomainView) = getfield(v, :domain), getfield(v, :inds)
+unview(v::DataView) = getfield(v, :data), getfield(v, :inds)
 
 # ----------------------
 # VIEWS WITH GEOMETRIES
@@ -46,31 +63,28 @@ function Base.view(data::Data, geometry::Geometry)
 end
 
 # convert from Cartesian to linear indices if needed
-@traitfn _linear(domain::D, inds) where {D; IsGrid{D}} =
-  vec(LinearIndices(size(domain))[inds])
-@traitfn _linear(domain::D, inds) where {D; !IsGrid{D}} = inds
+_linear(domain::Domain, inds) = inds
+_linear(grid::CartesianGrid, inds) =
+  vec(LinearIndices(size(grid))[inds])
 
 """
     indices(domain, geometry)
 
 Return the indices of the `domain` that are inside the `geometry`.
 """
-@traitfn function indices(domain::D, geometry::Geometry) where {D; !IsGrid{D}}
+function indices(domain::Domain, geometry::Geometry)
   pred(i) = _isinside(domain[i], geometry)
   filter(pred, 1:nelements(domain))
 end
 
-_isinside(p::Point, geometry) = p ∈ geometry
-_isinside(g::Geometry, geometry) = g ⊆ geometry
-
-@traitfn function indices(domain::D, box::Box) where {D; IsGrid{D}}
+function indices(grid::CartesianGrid, box::Box)
   # grid properties
-  or = coordinates(minimum(domain))
-  sp = spacing(domain)
-  sz = size(domain)
+  or = coordinates(minimum(grid))
+  sp = spacing(grid)
+  sz = size(grid)
 
   # intersection of boxes
-  □ = boundingbox(domain) ∩ box
+  □ = boundingbox(grid) ∩ box
   lo, up = coordinates.(extrema(□))
 
   # Cartesian indices of new corners
@@ -79,6 +93,9 @@ _isinside(g::Geometry, geometry) = g ⊆ geometry
 
   CartesianIndex(Tuple(ilo)):CartesianIndex(Tuple(iup))
 end
+
+_isinside(p::Point, geometry) = p ∈ geometry
+_isinside(g::Geometry, geometry) = g ⊆ geometry
 
 # ----------
 # UTILITIES

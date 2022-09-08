@@ -94,26 +94,58 @@ function discretizewithin(chain::Chain{3}, method::BoundaryDiscretizationMethod)
 end
 
 """
-    triangulate(object)
+    simplexify(object)
 
-Triangulate `object` of parametric dimension 2 into
-triangles using an appropriate triangulation method.
+Discretize `object` into simplices using an
+appropriate discretization method.
+
+### Notes
+
+This function is sometimes called "triangulate"
+when the `object` has parametric dimension 2.
 """
-function triangulate end
+function simplexify end
 
-triangulate(box::Box{2}) = discretize(box, FanTriangulation())
+# fallback method for all geometries
+simplexify(geometry) = discretize(geometry, RegularDiscretization(50))
 
-triangulate(tri::Triangle) = discretize(tri, FanTriangulation())
+# -----------------------
+# PARAMETRIC DIMENSION 1
+# -----------------------
 
-triangulate(quad::Quadrangle) = discretize(quad, FanTriangulation())
+simplexify(box::Box{1}) = SimpleMesh(vertices(box), GridTopology(1))
 
-triangulate(ngon::Ngon) = discretize(ngon, Dehn1899())
+simplexify(seg::Segment) = SimpleMesh(vertices(seg), GridTopology(1))
 
-triangulate(poly::PolyArea) = discretize(poly, FIST())
+function simplexify(chain::Chain)
+  np = npoints(chain)
+  ip = isperiodic(chain)
 
-triangulate(multi::Multi) = mapreduce(triangulate, merge, multi)
+  points = collect(vertices(chain))
+  topo   = GridTopology((np-1,), ip)
 
-function triangulate(mesh::Mesh)
+  SimpleMesh(points, topo)
+end
+
+simplexify(grid::CartesianGrid{1}) = grid
+
+# -----------------------
+# PARAMETRIC DIMENSION 2
+# -----------------------
+
+simplexify(box::Box{2}) = discretize(box, FanTriangulation())
+
+simplexify(tri::Triangle) = discretize(tri, FanTriangulation())
+
+simplexify(quad::Quadrangle) = discretize(quad, FanTriangulation())
+
+simplexify(ngon::Ngon) = discretize(ngon, Dehn1899())
+
+simplexify(poly::PolyArea) = discretize(poly, FIST())
+
+simplexify(multi::Multi) = mapreduce(simplexify, merge, multi)
+
+function simplexify(mesh::Mesh)
   points = vertices(mesh)
   elems  = elements(mesh)
   topo   = topology(mesh)
@@ -122,10 +154,10 @@ function triangulate(mesh::Mesh)
   # initialize vector of global indices
   ginds = Vector{Int}[]
 
-  # triangulate each element and append global indices
+  # simplexify each element and append global indices
   for (e, c) in zip(elems, connec)
-    # triangulate single element
-    mesh′   = triangulate(e)
+    # simplexify single element
+    mesh′   = simplexify(e)
     topo′   = topology(mesh′)
     connec′ = elements(topo′)
 
@@ -145,11 +177,14 @@ function triangulate(mesh::Mesh)
   SimpleMesh(points, newconnec)
 end
 
-triangulate(sphere::Sphere{3}) =
-  discretize(sphere, RegularDiscretization(100)) |> triangulate
+simplexify(sphere::Sphere{3}) =
+  discretize(sphere, RegularDiscretization(50)) |> simplexify
 
-triangulate(ball::Ball{2}) =
-  discretize(ball, RegularDiscretization(100)) |> triangulate
+simplexify(ball::Ball{2}) =
+  discretize(ball, RegularDiscretization(50)) |> simplexify
+
+simplexify(cylsurf::CylinderSurface) =
+  discretize(cylsurf, RegularDiscretization(50, 2)) |> simplexify
 
 # ----------------
 # IMPLEMENTATIONS

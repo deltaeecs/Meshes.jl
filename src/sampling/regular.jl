@@ -35,6 +35,16 @@ function sample(::AbstractRNG, box::Box,
   ivec(or + (ind.I .- 1) .* sp for ind in CartesianIndices(sz))
 end
 
+function sample(::AbstractRNG, bezier::BezierCurve{Dim,T},
+                method::RegularSampling) where {Dim,T}
+  sz = fitdims(method.sizes, paramdim(bezier))
+
+  V = T <: AbstractFloat ? T : Float64
+  trange = range(V(0), stop=V(1), length=sz[1])
+
+  (bezier(t) for t in trange)
+end
+
 function sample(::AbstractRNG, sphere::Sphere{2,T},
                 method::RegularSampling) where {T}
   sz = fitdims(method.sizes, paramdim(sphere))
@@ -85,6 +95,54 @@ function sample(::AbstractRNG, ball::Ball{Dim,T},
   scale(p, s) = Point(s * coordinates(p))
 
   ivec(scale(p, s) for p in points, s in srange)
+end
+
+function sample(::AbstractRNG, cylsurf::CylinderSurface{T},
+                method::RegularSampling) where {T}
+  sz = fitdims(method.sizes, paramdim(cylsurf))
+  r  = radius(cylsurf)
+  b  = bottom(cylsurf)
+  t  = top(cylsurf)
+  a  = axis(cylsurf)
+
+  V = T <: AbstractFloat ? T : Float64
+  φmin, φmax = V(0), V(2π)
+  zmin, zmax = V(0), V(1)
+  δφ = (φmax - φmin) / sz[1]
+  φrange = range(φmin, stop=φmax-δφ, length=sz[1])
+  zrange = range(zmin, stop=zmax,    length=sz[2])
+
+  # rotation to align z axis with cylinder axis
+  d₃  = a(1) - a(0)
+  l  = norm(d₃)
+  d₃ /= l
+  d₁, d₂ = householderbasis(d₃)
+  R = transpose([d₁ d₂ d₃])
+
+  # new normals of planes in new rotated system
+  nᵦ = R * normal(b)
+  nₜ = R * normal(t)
+
+  # given cylindrical coordinates (r*cos(φ), r*sin(φ), z) and the
+  # equation of the plane, we can solve for z and find all points
+  # along the ellipse obtained by intersection
+  zᵦ(φ) = -l/2 - (r*cos(φ)*nᵦ[1] + r*sin(φ)*nᵦ[2]) / nᵦ[3]
+  zₜ(φ) = +l/2 - (r*cos(φ)*nₜ[1] + r*sin(φ)*nₜ[2]) / nₜ[3]
+  cᵦ(φ) = Point(r*cos(φ), r*sin(φ), zᵦ(φ))
+  cₜ(φ) = Point(r*cos(φ), r*sin(φ), zₜ(φ))
+
+  # center of cylinder for final translation
+  oᵦ = coordinates(origin(b))
+  oₜ = coordinates(origin(t))
+  oₘ = @. (oᵦ + oₜ) / 2
+
+  function point(φ, z)
+    pᵦ, pₜ = cᵦ(φ), cₜ(φ)
+    p = pᵦ + z*(pₜ - pᵦ)
+    Point((R' * coordinates(p)) + oₘ)
+  end
+
+  ivec(point(φ, z) for φ in φrange, z in zrange)
 end
 
 function sample(::AbstractRNG, seg::Segment{Dim,T},

@@ -36,15 +36,22 @@ end
 # vertices of hexahedron on 3D grid
 function (∂::Boundary{3,0,3,T})(ind::Integer) where {T<:GridTopology}
   t = ∂.topology
+  cx, cy, cz = isperiodic(t)
+  nx, ny, nz = size(t)
+
   i, j, k = elem2cart(t, ind)
-  i1 = cart2corner(t, i  , j  , k  )
-  i2 = cart2corner(t, i+1, j  , k  )
-  i3 = cart2corner(t, i+1, j+1, k  )
-  i4 = cart2corner(t, i  , j+1, k  )
-  i5 = cart2corner(t, i  , j  , k+1)
-  i6 = cart2corner(t, i+1, j  , k+1)
-  i7 = cart2corner(t, i+1, j+1, k+1)
-  i8 = cart2corner(t, i  , j+1, k+1)
+  i₊ = cx && (i == nx) ? 1 : i + 1
+  j₊ = cy && (j == ny) ? 1 : j + 1
+  k₊ = cz && (k == nz) ? 1 : k + 1
+
+  i1 = cart2corner(t, i , j , k )
+  i2 = cart2corner(t, i₊, j , k )
+  i3 = cart2corner(t, i₊, j₊, k )
+  i4 = cart2corner(t, i , j₊, k )
+  i5 = cart2corner(t, i , j , k₊)
+  i6 = cart2corner(t, i₊, j , k₊)
+  i7 = cart2corner(t, i₊, j₊, k₊)
+  i8 = cart2corner(t, i , j₊, k₊)
   [i1, i2, i3, i4, i5, i6, i7, i8]
 end
 
@@ -56,18 +63,27 @@ end
 # vertices of quadrangle on 2D grid
 function (∂::Boundary{2,0,2,T})(ind::Integer) where {T<:GridTopology}
   t = ∂.topology
+  cx, cy = isperiodic(t)
+  nx, ny = size(t)
+
   i, j = elem2cart(t, ind)
-  i1 = cart2corner(t, i  , j  )
-  i2 = cart2corner(t, i+1, j  )
-  i3 = cart2corner(t, i+1, j+1)
-  i4 = cart2corner(t, i  , j+1)
+  i₊ = cx && (i == nx) ? 1 : i + 1
+  j₊ = cy && (j == ny) ? 1 : j + 1
+
+  i1 = cart2corner(t, i , j )
+  i2 = cart2corner(t, i₊, j )
+  i3 = cart2corner(t, i₊, j₊)
+  i4 = cart2corner(t, i , j₊)
   [i1, i2, i3, i4]
 end
 
 # vertices of segment on 2D grid
 function (∂::Boundary{1,0,2,T})(ind::Integer) where {T<:GridTopology}
   t = ∂.topology
+  cx, cy = isperiodic(t)
   nx, ny = size(t)
+
+  @assert !(cx || cy) "not implemented"
 
   if ind ≤ nx*ny # vertical edges
     i1 = elem2corner(t, ind)
@@ -87,8 +103,15 @@ end
 
 # vertices of segment on 1D grid
 function (∂::Boundary{1,0,1,T})(ind::Integer) where {T<:GridTopology}
-  i1 = ind
-  i2 = ind + 1
+  t = ∂.topology
+  c = first(isperiodic(t))
+  n = first(size(t))
+
+  i  = ind
+  i₊ = c && (i == n) ? 1 : i + 1
+
+  i1 = i
+  i2 = i₊
   [i1, i2]
 end
 

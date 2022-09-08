@@ -8,8 +8,6 @@ using Tables
 using StaticArrays
 using SparseArrays
 using CircularArrays
-using SimpleTraits
-using RecipesBase
 using LinearAlgebra
 using Random
 
@@ -17,11 +15,8 @@ using IterTools: ivec
 using StatsBase: Weights
 using SpecialFunctions: gamma
 using Distances: PreMetric, Euclidean, Mahalanobis, evaluate
-using ReferenceFrameRotations: EulerAngles, DCM, angle_to_dcm
+using ReferenceFrameRotations: EulerAngles, DCM
 using NearestNeighbors: KDTree, BallTree, knn, inrange
-
-# import categorical arrays as a temporary solution for plot recipes
-using CategoricalArrays: CategoricalValue, levelcode
 
 import Tables
 import Random
@@ -94,14 +89,7 @@ include("smoothing.jl")
 include("boundingboxes.jl")
 include("hulls.jl")
 
-# plot recipes
-include("plotrecipes/domain.jl")
-include("plotrecipes/data.jl")
-include("plotrecipes/points.jl")
-include("plotrecipes/geometries.jl")
-include("plotrecipes/collections.jl")
-include("plotrecipes/cartesiangrids.jl")
-include("plotrecipes/partitions.jl")
+@deprecate triangulate(x) simplexify(x)
 
 export
   # points
@@ -137,9 +125,6 @@ export
   domain, constructor, asarray,
   variables, name, mactype,
 
-  # optional traits
-  IsGrid, isgrid,
-
   # domain/data alias
   DomainOrData,
 
@@ -147,14 +132,15 @@ export
   Geometry,
   embeddim, paramdim, coordtype,
   measure, area, volume, boundary,
-  center, centroid, isconvex, issimplex,
+  isconvex, issimplex, isperiodic,
+  center, centroid,
 
   # primitives
   Primitive,
   Line, Ray, Plane, BezierCurve,
   Box, Ball, Sphere, Cylinder, CylinderSurface,
   ncontrols, degree, Horner, DeCasteljau,
-  radius, axis, planes, height, isright, sides,
+  radius, bottom, top, axis, isright, sides,
   measure, diagonal, origin, direction,
 
   # polytopes
@@ -188,6 +174,7 @@ export
   # utililities
   signarea,
   sideof,
+  householderbasis,
 
   # paths
   Path,
@@ -210,7 +197,9 @@ export
   KNearestSearch,
   KBallSearch,
   BoundedSearch,
+  GlobalSearch,
   search!, search,
+  maxneighbors,
 
   # miscellaneous
   supportfun,
@@ -236,7 +225,7 @@ export
   elem2cart, cart2elem,
   corner2cart, cart2corner,
   elem2corner, corner2elem,
-  rank2type,
+  rank2type, isperiodic,
   half4elem, half4vert,
   half4edge, half4pair,
   edge4pair,
@@ -262,14 +251,15 @@ export
   meshdata,
 
   # views
-  DomainView, DataView,
+  DomainView,
+  DataView,
 
   # partitions
   Partition,
   indices, metadata,
 
   # viewing
-  indices, slice,
+  unview, indices, slice,
 
   # sampling
   SamplingMethod,
@@ -335,7 +325,7 @@ export
   FIST, Dehn1899,
   discretize,
   discretizewithin,
-  triangulate,
+  simplexify,
 
   # simplification
   SimplificationMethod,
